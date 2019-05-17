@@ -6,16 +6,7 @@ import NodeCanvasFactory from "./NodeCanvasFactory";
 import PdfXml from "./PdfXml";
 
 
-function main() {
-    const files = process.argv.slice(2)
-    console.log(files);
-    for(const file of files) {
-        console.log(`Converting ${file}:`)
-        convertPdfFile(file);
-    }
-}
-
-function convertPdfFile(file: string) {
+export function convertPdfFile(file: string) {
     fs.readFile(file, (err, buffer) =>{
         if (err) {
             console.error(err);
@@ -34,7 +25,7 @@ interface pdfPageParameters {
     scale: number;
 }
 
-function convertPdfBuffer(buffer: Buffer, parameters?: pdfParameters ) {
+export function convertPdfBuffer(buffer: Buffer, parameters?: pdfParameters ) {
     // Initialize parameters
     const defaultPageParams = {
         scale: 4,
@@ -47,11 +38,8 @@ function convertPdfBuffer(buffer: Buffer, parameters?: pdfParameters ) {
     }
     const filename = parameters ? parameters.filename : undefined;
 
-    // Create document
-    const xml = new PdfXml();
-    xml.serialize();
-
     // Parse PDF
+    const xml = new PdfXml();
     pdfjsLib.getDocument({
         data: new Uint8Array(buffer),
     }).promise.then(pdfDocument =>{
@@ -68,6 +56,7 @@ function convertPdfBuffer(buffer: Buffer, parameters?: pdfParameters ) {
 }
 
 function convertPdfPage(pdfPage: PDFPageProxy, {scale}: pdfPageParameters) {
+    // Get Viewport
     const viewport = pdfPage.getViewport(scale);
     const pageInfo = {
         num: pdfPage.pageNumber,
@@ -78,10 +67,13 @@ function convertPdfPage(pdfPage: PDFPageProxy, {scale}: pdfPageParameters) {
         offsetY: viewport.offsetY,
         rotation: viewport.rotation,
     };
-    console.log(pageInfo)
+
+    // Get TextContent
     pdfPage.getTextContent().then(content => {
         console.log(content);
     });
+
+    // Get Canvas
     const canvas = createCanvas(viewport.width, viewport.height);
     const ctx = canvas.getContext("2d");
     pdfPage.render({
@@ -90,10 +82,6 @@ function convertPdfPage(pdfPage: PDFPageProxy, {scale}: pdfPageParameters) {
         canvasFactory: new NodeCanvasFactory(),
         intent: "print",
     }).promise.then(()=>{
-        console.log("rendered");
-        let image = canvas.toBuffer();
-        fs.writeFileSync("test.png", image);
+        return canvas.toBuffer();
     });
 }
-
-export default main;
