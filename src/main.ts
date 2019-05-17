@@ -25,18 +25,23 @@ function convertPdfFile(file: string) {
     })
 }
 
-interface conversionParameters {
+interface pdfConvertParameters {
     title?: string;
     scale?: number;
 }
 
-function convertPdfBuffer(buffer: Buffer, parameters?: conversionParameters ) {
+interface pdfConvertDefinedParameters {
+    title: string;
+    scale: number;
+}
+
+function convertPdfBuffer(buffer: Buffer, parameters?: pdfConvertParameters ) {
     // Initialize parameters
     const defaultParams = {
         title: "",
         scale: 4,
     };
-    let params: conversionParameters;
+    let params: pdfConvertDefinedParameters;
     if(parameters) {
         params = {...defaultParams, ...parameters};
     } else {
@@ -82,7 +87,7 @@ function convertPdfBuffer(buffer: Buffer, parameters?: conversionParameters ) {
     })
 }
 
-function convertPdfPage(pdfPage: PDFPageProxy, {scale}: conversionParamters) {
+function convertPdfPage(pdfPage: PDFPageProxy, {scale}: pdfConvertDefinedParameters) {
     const viewport = pdfPage.getViewport(scale);
     const pageInfo = {
         num: pdfPage.pageNumber,
