@@ -1,14 +1,15 @@
-import {createCanvas, Canvas, CanvasRenderingContext2D} from "canvas";
+import {createCanvas} from "canvas";
 import fs from "fs";
 import pdfjsLib, { PDFPageProxy } from "pdfjs-dist";
+import { js2xml } from "xml-js";
 
 import NodeCanvasFactory from "./NodeCanvasFactory";
 
 
 function main() {
-    let files = process.argv.slice(2)
+    const files = process.argv.slice(2)
     console.log(files);
-    for(let file of files) {
+    for(const file of files) {
         console.log(`Converting ${file}:`)
         convertPdfFile(file);
     }
@@ -19,12 +20,53 @@ function convertPdfFile(file: string) {
         if (err) {
             console.error(err);
         } else {
-            convertPdfBuffer(buffer);
+            convertPdfBuffer(buffer, {title: file});
         }
     })
 }
 
-function convertPdfBuffer(buffer: Buffer) {
+interface conversionParameters {
+    title?: string;
+    scale?: number;
+}
+
+function convertPdfBuffer(buffer: Buffer, parameters?: conversionParameters ) {
+    // Initialize parameters
+    const defaultParams = {
+        title: "",
+        scale: 4,
+    };
+    let params: conversionParameters;
+    if(parameters) {
+        params = {...defaultParams, ...parameters};
+    } else {
+        params = defaultParams;
+    }
+
+    // Create document
+    const body = {
+        type: "element",
+        name: "body",
+        elements: []
+    };
+    const html = { type: "element", name: "html", elements: [
+        { type: "element", name: "head", elements: [
+            { type: "element", name: "meta", attributes: { charset: "UTF-8" }},
+            { type: "element", name: "title", elements: [
+                { type: "text", text: params.title },
+            ]}
+        ]},
+        body,
+    ]};
+    const document = {
+        elements: [
+            { type: "doctype", doctype: "HTML"},
+            html,
+        ]
+    };
+    console.log(js2xml(document));
+
+    // Parse PDF
     pdfjsLib.getDocument({
         data: new Uint8Array(buffer),
     }).promise.then(pdfDocument =>{
@@ -32,14 +74,16 @@ function convertPdfBuffer(buffer: Buffer) {
             console.log(metadata);
         })
         for (let i = 1; i <= pdfDocument.numPages; i++) {
-            pdfDocument.getPage(i).then(convertPdfPage);
+            pdfDocument.getPage(i).then(pdfPage=>{
+                convertPdfPage(pdfPage, params)
+            });
             break;
         }
     })
 }
 
-function convertPdfPage(pdfPage: PDFPageProxy) {
-    const viewport = pdfPage.getViewport(4);
+function convertPdfPage(pdfPage: PDFPageProxy, {scale}: conversionParamters) {
+    const viewport = pdfPage.getViewport(scale);
     const pageInfo = {
         num: pdfPage.pageNumber,
         scale: viewport.scale,
