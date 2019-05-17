@@ -188,6 +188,7 @@ declare module "pdfjs-dist" {
         textLayer?: PDFRenderTextLayer;
         imageLayer?: PDFRenderImageLayer;
         canvasFactory?: any;
+        intent?: "display" | "print";
         continueCallback?: (_continue: () => void) => void;
     }
 
