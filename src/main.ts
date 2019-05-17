@@ -1,9 +1,9 @@
 import {createCanvas} from "canvas";
 import fs from "fs";
 import pdfjsLib, { PDFPageProxy } from "pdfjs-dist";
-import { js2xml } from "xml-js";
 
 import NodeCanvasFactory from "./NodeCanvasFactory";
+import PdfXml from "./PdfXml";
 
 
 function main() {
@@ -20,74 +20,54 @@ function convertPdfFile(file: string) {
         if (err) {
             console.error(err);
         } else {
-            convertPdfBuffer(buffer, {title: file});
+            convertPdfBuffer(buffer, {filename: file});
         }
     })
 }
 
-interface pdfConvertParameters {
-    title?: string;
+interface pdfParameters {
+    filename?: string;
     scale?: number;
 }
 
-interface pdfConvertDefinedParameters {
-    title: string;
+interface pdfPageParameters {
     scale: number;
 }
 
-function convertPdfBuffer(buffer: Buffer, parameters?: pdfConvertParameters ) {
+function convertPdfBuffer(buffer: Buffer, parameters?: pdfParameters ) {
     // Initialize parameters
-    const defaultParams = {
-        title: "",
+    const defaultPageParams = {
         scale: 4,
     };
-    let params: pdfConvertDefinedParameters;
+    let pageParams: pdfPageParameters;
     if(parameters) {
-        params = {...defaultParams, ...parameters};
+        pageParams = {...defaultPageParams, ...parameters};
     } else {
-        params = defaultParams;
+        pageParams = defaultPageParams;
     }
+    const filename = parameters ? parameters.filename : undefined;
 
     // Create document
-    const body = {
-        type: "element",
-        name: "body",
-        elements: []
-    };
-    const html = { type: "element", name: "html", elements: [
-        { type: "element", name: "head", elements: [
-            { type: "element", name: "meta", attributes: { charset: "UTF-8" }},
-            { type: "element", name: "title", elements: [
-                { type: "text", text: params.title },
-            ]}
-        ]},
-        body,
-    ]};
-    const document = {
-        elements: [
-            { type: "doctype", doctype: "HTML"},
-            html,
-        ]
-    };
-    console.log(js2xml(document));
+    const xml = new PdfXml();
+    xml.serialize();
 
     // Parse PDF
     pdfjsLib.getDocument({
         data: new Uint8Array(buffer),
     }).promise.then(pdfDocument =>{
         pdfDocument.getMetadata().then(metadata =>{
-            console.log(metadata);
+            xml.setMetadata({...metadata, filename});
         })
         for (let i = 1; i <= pdfDocument.numPages; i++) {
             pdfDocument.getPage(i).then(pdfPage=>{
-                convertPdfPage(pdfPage, params)
+                convertPdfPage(pdfPage, pageParams)
             });
             break;
         }
     })
 }
 
-function convertPdfPage(pdfPage: PDFPageProxy, {scale}: pdfConvertDefinedParameters) {
+function convertPdfPage(pdfPage: PDFPageProxy, {scale}: pdfPageParameters) {
     const viewport = pdfPage.getViewport(scale);
     const pageInfo = {
         num: pdfPage.pageNumber,
